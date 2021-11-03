@@ -10,7 +10,7 @@ import Foundation
 
 let SS_LOCAL_VERSION = "3.2.5"
 let KCPTUN_CLIENT_VERSION = "v20190905_1"
-let V2RAY_PLUGIN_VERSION = "1.2.0"
+let V2RAY_PLUGIN_VERSION = "v1.3.1-9-gddd7ab4"
 let PRIVOXY_VERSION = "3.0.26.static"
 let SIMPLE_OBFS_VERSION = "0.0.5_1"
 let APP_SUPPORT_DIR = "/Library/Application Support/ShadowsocksX-NG/"
@@ -51,7 +51,7 @@ func generateSSLocalLauchAgentPlist() -> Bool {
     let enableUdpRelay = defaults.bool(forKey: "LocalSocks5.EnableUDPRelay")
     let enableVerboseMode = defaults.bool(forKey: "LocalSocks5.EnableVerboseMode")
     
-    var arguments = [sslocalPath, "-c", "ss-local-config.json", "--fast-open"]
+    var arguments = [sslocalPath, "-c", "ss-local-config.json"]
     if enableUdpRelay {
         arguments.append("-u")
     }
@@ -335,7 +335,15 @@ func InstallPrivoxy() {
         }
     }
     
-    let userConfigPath = homeDir + USER_CONFIG_DIR + "user-privoxy.config"
+    let userConfigDir = homeDir + USER_CONFIG_DIR
+    // Make dir: '~/.ShadowsocksX-NG'
+    if !fileMgr.fileExists(atPath: userConfigDir) {
+        try! fileMgr.createDirectory(atPath: userConfigDir
+        , withIntermediateDirectories: true, attributes: nil)
+    }
+
+    // Install empty `user-privoxy.config` file.
+    let userConfigPath = userConfigDir + "user-privoxy.config"
     if !fileMgr.fileExists(atPath: userConfigPath) {
         let srcPath = Bundle.main.path(forResource: "user-privoxy", ofType: "config")!
         try! fileMgr.copyItem(atPath: srcPath, toPath: userConfigPath)

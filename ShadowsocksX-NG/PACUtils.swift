@@ -36,7 +36,7 @@ func SyncPac() {
     }
     
     let fileMgr = FileManager.default
-    if !fileMgr.fileExists(atPath: PACRulesDirPath) {
+    if !fileMgr.fileExists(atPath: PACFilePath) {
         needGenerate = true
     }
     
@@ -85,7 +85,21 @@ func GeneratePACFile() -> Bool {
                 let userRuleStr = try String(contentsOfFile: PACUserRuleFilePath, encoding: String.Encoding.utf8)
                 let userRuleLines = userRuleStr.components(separatedBy: CharacterSet.newlines)
                 
-                lines = userRuleLines + lines
+                lines = userRuleLines + lines.filter { (line) in
+                    // ignore the rule from gwf if user provide same rule for the same url
+                    var i = line.startIndex
+                    while i < line.endIndex {
+                        if line[i] == "@" || line[i] == "|" {
+                            i = line.index(after: i)
+                            continue
+                        }
+                        break
+                    }
+                    if i == line.startIndex {
+                        return !userRuleLines.contains(line)
+                    }
+                    return !userRuleLines.contains(String(line[i...]))
+                }
             } catch {
                 NSLog("Not found user-rule.txt")
             }
@@ -156,25 +170,25 @@ func UpdatePACFromGFWList() {
     }
     
     let url = UserDefaults.standard.string(forKey: "GFWListURL")
-    Alamofire.request(url!)
+    AF.request(url!)
+        .validate()
         .responseString {
             response in
-            if response.result.isSuccess {
-                if let v = response.result.value {
-                    do {
-                        try v.write(toFile: GFWListFilePath, atomically: true, encoding: String.Encoding.utf8)
-                        if GeneratePACFile() {
-                            // Popup a user notification
-                            let notification = NSUserNotification()
-                            notification.title = "PAC has been updated by latest GFW List.".localized
-                            NSUserNotificationCenter.default
-                                .deliver(notification)
-                        }
-                    } catch {
-                        
+            switch response.result {
+            case .success(let v):
+                do {
+                    try v.write(toFile: GFWListFilePath, atomically: true, encoding: String.Encoding.utf8)
+                    if GeneratePACFile() {
+                        // Popup a user notification
+                        let notification = NSUserNotification()
+                        notification.title = "PAC has been updated by latest GFW List.".localized
+                        NSUserNotificationCenter.default
+                            .deliver(notification)
                     }
+                } catch {
+                    
                 }
-            } else {
+            case .failure:
                 // Popup a user notification
                 let notification = NSUserNotification()
                 notification.title = "Failed to download latest GFW List.".localized
